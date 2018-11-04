@@ -112,6 +112,6 @@ private:
 
   std::thread thread_;
   cf_ptr<CFRunLoopRef> run_loop_;
-  std::shared_ptr<pqrs::thread_wait> running_wait_;
+  std::shared_ptr<thread_wait> running_wait_;
 };
 } // namespace pqrs
