@@ -15,6 +15,8 @@
 namespace pqrs {
 class cf_run_loop_thread final {
 public:
+  cf_run_loop_thread(const cf_run_loop_thread&) = delete;
+
   cf_run_loop_thread(void) {
     running_wait_ = make_thread_wait();
 
