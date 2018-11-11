@@ -1,2 +1,2 @@
-pqrs-org/cpp-osx-cf_ptr@v1.2.0 --cmake header
+pqrs-org/cpp-cf_ptr@v1.3.0 --cmake header
 pqrs-org/cpp-thread_wait@v1.2.0 --cmake header
