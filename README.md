@@ -14,16 +14,15 @@ cpp-cf_run_loop_thread depends the following classes.
 
 ## Install
 
+### Using package manager
+
+You can install `include/pqrs` by using [cget](https://github.com/pfultz2/cget).
+
+```shell
+cget install pqrs-org/cpp-cget-recipes
+cget install pqrs-org/cpp-cf_run_loop_thread
+```
+
 ### Manual install
 
 Copy `include/pqrs` directory into your include directory.
-
-### Using package manager
-
-You can also install `include/pqrs` by using [cget](https://github.com/pfultz2/cget).
-
-```shell
-cget install pqrs-org/cpp-cf_ptr@v1.3.0 --cmake header
-cget install pqrs-org/cpp-cf_run_loop_thread@v1.3.0 --cmake header
-cget install pqrs-org/cpp-thread_wait@v1.2.0 --cmake header
-```
