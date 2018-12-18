@@ -91,7 +91,6 @@ public:
     CFRunLoopWakeUp(*run_loop_);
   }
 
-private:
   void enqueue(void (^_Nonnull block)(void)) const {
     // Do not call `CFRunLoopPerformBlock` until `CFRunLoopRun` is called.
     // A segmentation fault occurs if we call `CFRunLoopPerformBlock` while `CFRunLoopRun' is processing.
@@ -105,6 +104,7 @@ private:
     CFRunLoopWakeUp(*run_loop_);
   }
 
+private:
   void wait_until_running(void) const {
     running_wait_->wait_notice();
   }
