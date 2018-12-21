@@ -1,9 +1,9 @@
 #include <iostream>
-#include <pqrs/cf_run_loop_thread.hpp>
+#include <pqrs/cf/run_loop_thread.hpp>
 
 int main(void) {
   {
-    pqrs::cf_run_loop_thread t;
+    pqrs::cf::run_loop_thread t;
 
     CFRunLoopPerformBlock(t.get_run_loop(),
                           kCFRunLoopCommonModes,

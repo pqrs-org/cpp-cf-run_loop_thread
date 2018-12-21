@@ -1,15 +1,15 @@
-[![Build Status](https://travis-ci.org/pqrs-org/cpp-cf_run_loop_thread.svg?branch=master)](https://travis-ci.org/pqrs-org/cpp-cf_run_loop_thread)
-[![License](https://img.shields.io/badge/license-Boost%20Software%20License-blue.svg)](https://github.com/pqrs-org/cpp-cf_run_loop_thread/blob/master/LICENSE.md)
+[![Build Status](https://travis-ci.org/pqrs-org/cpp-cf-run_loop_thread.svg?branch=master)](https://travis-ci.org/pqrs-org/cpp-cf-run_loop_thread)
+[![License](https://img.shields.io/badge/license-Boost%20Software%20License-blue.svg)](https://github.com/pqrs-org/cpp-cf-run_loop_thread/blob/master/LICENSE.md)
 
-# cpp-cf_run_loop_thread
+# cpp-cf-run_loop_thread
 
-`pqrs::cf_run_loop_thread` provides a thread for `CFRunLoop`.
+`pqrs::cf-run_loop_thread` provides a thread for `CFRunLoop`.
 
 ## Requirements
 
-cpp-cf_run_loop_thread depends the following classes.
+cpp-cf-run_loop_thread depends the following classes.
 
-- [pqrs::cf_ptr](https://github.com/pqrs-org/cpp-cf_ptr).
+- [pqrs::cf::cf_ptr](https://github.com/pqrs-org/cpp-cf-cf_ptr).
 - [pqrs::thread_wait](https://github.com/pqrs-org/cpp-thread_wait).
 
 ## Install
@@ -20,7 +20,7 @@ You can install `include/pqrs` by using [cget](https://github.com/pfultz2/cget).
 
 ```shell
 cget install pqrs-org/cpp-cget-recipes
-cget install pqrs-org/cpp-cf_run_loop_thread
+cget install pqrs-org/cpp-cf-run_loop_thread
 ```
 
 ### Manual install

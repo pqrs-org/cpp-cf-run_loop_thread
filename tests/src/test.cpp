@@ -1,7 +1,7 @@
 #define CATCH_CONFIG_MAIN
 #include <catch2/catch.hpp>
 
-#include <pqrs/cf_run_loop_thread.hpp>
+#include <pqrs/cf/run_loop_thread.hpp>
 
 namespace {
 class run_loop_thread_test final {
@@ -15,8 +15,8 @@ public:
       wait1_ = pqrs::make_thread_wait();
       wait2_ = pqrs::make_thread_wait();
 
-      thread1_ = std::make_shared<pqrs::cf_run_loop_thread>();
-      thread2_ = std::make_shared<pqrs::cf_run_loop_thread>();
+      thread1_ = std::make_shared<pqrs::cf::run_loop_thread>();
+      thread2_ = std::make_shared<pqrs::cf::run_loop_thread>();
 
       // thread1 (loop)
 
@@ -70,8 +70,8 @@ private:
   }
 
 private:
-  std::shared_ptr<pqrs::cf_run_loop_thread> thread1_;
-  std::shared_ptr<pqrs::cf_run_loop_thread> thread2_;
+  std::shared_ptr<pqrs::cf::run_loop_thread> thread1_;
+  std::shared_ptr<pqrs::cf::run_loop_thread> thread2_;
 
   int count1_;
   int count2_;

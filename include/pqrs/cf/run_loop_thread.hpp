@@ -1,23 +1,24 @@
 #pragma once
 
-// pqrs::cf_run_loop_thread v1.5
+// pqrs::cf::run_loop_thread v1.5
 
 // (C) Copyright Takayama Fumihiko 2018.
 // Distributed under the Boost Software License, Version 1.0.
 // (See http://www.boost.org/LICENSE_1_0.txt)
 
-// `pqrs::cf_run_loop_thread` can be used safely in a multi-threaded environment.
+// `pqrs::cf::run_loop_thread` can be used safely in a multi-threaded environment.
 
-#include <pqrs/cf_ptr.hpp>
+#include <pqrs/cf/cf_ptr.hpp>
 #include <pqrs/thread_wait.hpp>
 #include <thread>
 
 namespace pqrs {
-class cf_run_loop_thread final {
+namespace cf {
+class run_loop_thread final {
 public:
-  cf_run_loop_thread(const cf_run_loop_thread&) = delete;
+  run_loop_thread(const run_loop_thread&) = delete;
 
-  cf_run_loop_thread(void) {
+  run_loop_thread(void) {
     running_wait_ = make_thread_wait();
 
     thread_ = std::thread([this] {
@@ -55,9 +56,9 @@ public:
     });
   }
 
-  ~cf_run_loop_thread(void) {
+  ~run_loop_thread(void) {
     if (thread_.joinable()) {
-      // We have to call `terminate` before destroy cf_run_loop_thread.
+      // We have to call `terminate` before destroy run_loop_thread.
       abort();
     }
 
@@ -116,4 +117,5 @@ private:
   cf_ptr<CFRunLoopRef> run_loop_;
   std::shared_ptr<thread_wait> running_wait_;
 };
+} // namespace cf
 } // namespace pqrs
