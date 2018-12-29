@@ -25,7 +25,6 @@ public:
                               kCFRunLoopCommonModes,
                               ^{
                                 ++count1_;
-                                // krbn::logger::get_logger().info("thread1 {0} {1}", j, count1);
                               });
       }
       CFRunLoopPerformBlock(thread1_->get_run_loop(),
