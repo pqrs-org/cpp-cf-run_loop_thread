@@ -1,9 +1,10 @@
-#define CATCH_CONFIG_MAIN
-#include <catch2/catch.hpp>
-
+#include <boost/ut.hpp>
 #include <pqrs/cf/run_loop_thread.hpp>
 
 namespace {
+using namespace boost::ut;
+using namespace boost::ut::literals;
+
 class run_loop_thread_test final {
 public:
   run_loop_thread_test(void) : count1_(0),
@@ -48,8 +49,8 @@ public:
       thread2_->terminate();
       thread2_ = nullptr;
 
-      REQUIRE(count1_ == 5);
-      REQUIRE(count2_ == 3);
+      expect(count1_ == 5);
+      expect(count2_ == 3);
     }
   }
 
@@ -80,6 +81,8 @@ private:
 };
 } // namespace
 
-TEST_CASE("run_loop_thread") {
-  run_loop_thread_test();
+int main(void) {
+  "loop_thread"_test = [] {
+    run_loop_thread_test();
+  };
 }
