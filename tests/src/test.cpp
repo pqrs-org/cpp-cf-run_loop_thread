@@ -22,18 +22,13 @@ public:
       // thread1 (loop)
 
       for (int j = 0; j < 5; ++j) {
-        CFRunLoopPerformBlock(thread1_->get_run_loop(),
-                              kCFRunLoopCommonModes,
-                              ^{
-                                ++count1_;
-                              });
+        thread1_->enqueue(^{
+          ++count1_;
+        });
       }
-      CFRunLoopPerformBlock(thread1_->get_run_loop(),
-                            kCFRunLoopCommonModes,
-                            ^{
-                              wait1_->notify();
-                            });
-      thread1_->wake();
+      thread1_->enqueue(^{
+        wait1_->notify();
+      });
 
       // thread2 (recursive)
 
@@ -56,16 +51,14 @@ public:
 
 private:
   void enqueue2(void) {
-    CFRunLoopPerformBlock(thread2_->get_run_loop(),
-                          kCFRunLoopCommonModes,
-                          ^{
-                            ++count2_;
-                            if (count2_ < 3) {
-                              enqueue2();
-                            } else {
-                              wait2_->notify();
-                            }
-                          });
+    thread2_->enqueue(^{
+      ++count2_;
+      if (count2_ < 3) {
+        enqueue2();
+      } else {
+        wait2_->notify();
+      }
+    });
     thread2_->wake();
   }
 
