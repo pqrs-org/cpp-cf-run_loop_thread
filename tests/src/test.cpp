@@ -85,4 +85,23 @@ int main(void) {
   "loop_thread"_test = [] {
     run_loop_thread_test();
   };
+
+  "call methods after terminate"_test = [] {
+    auto run_loop_thread = std::make_shared<pqrs::cf::run_loop_thread>();
+    int __block count = 0;
+
+    run_loop_thread->enqueue(^{
+      ++count;
+    });
+
+    run_loop_thread->terminate();
+
+    expect(count == 1_i);
+
+    run_loop_thread->wake();
+
+    run_loop_thread->enqueue(^{
+      std::cout << "never reached" << std::endl;
+    });
+  };
 }
