@@ -59,7 +59,6 @@ private:
         wait2_->notify();
       }
     });
-    thread2_->wake();
   }
 
 private:
