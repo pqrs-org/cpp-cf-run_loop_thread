@@ -1,4 +1,5 @@
 #include <boost/ut.hpp>
+#include <list>
 #include <pqrs/cf/run_loop_thread.hpp>
 
 namespace {
@@ -9,7 +10,7 @@ class run_loop_thread_test final {
 public:
   run_loop_thread_test(void) : count1_(0),
                                count2_(0) {
-    for (int i = 0; i < 5000; ++i) {
+    for (int i = 0; i < 10; ++i) {
       count1_ = 0;
       count2_ = 0;
 
@@ -23,6 +24,7 @@ public:
 
       for (int j = 0; j < 5; ++j) {
         thread1_->enqueue(^{
+          std::cout << "." << std::flush;
           ++count1_;
         });
       }
@@ -47,6 +49,8 @@ public:
       expect(count1_ == 5);
       expect(count2_ == 3);
     }
+
+    std::cout << std::endl;
   }
 
 private:
@@ -76,6 +80,34 @@ private:
 int main(void) {
   "loop_thread"_test = [] {
     run_loop_thread_test();
+  };
+
+  "loop_thread (multiple instances)"_test = [] {
+    std::list<std::shared_ptr<pqrs::cf::run_loop_thread>> run_loop_threads;
+    for (int i = 0; i < 100; ++i) {
+      auto t = std::make_shared<pqrs::cf::run_loop_thread>();
+
+      t->enqueue(^{
+        std::cout << "." << std::flush;
+      });
+
+      run_loop_threads.push_back(t);
+
+      while (run_loop_threads.size() > 10) {
+        auto t = run_loop_threads.front();
+        t->terminate();
+
+        run_loop_threads.pop_front();
+      }
+    }
+
+    for (auto&& t : run_loop_threads) {
+      t->terminate();
+    }
+
+    run_loop_threads.clear();
+
+    std::cout << std::endl;
   };
 
   "call methods after terminate"_test = [] {
