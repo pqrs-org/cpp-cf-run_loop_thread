@@ -16,6 +16,11 @@ namespace pqrs {
 namespace cf {
 class run_loop_thread final {
 public:
+  class extra {
+  public:
+#include "run_loop_thread/extra/shared_run_loop_thread.hpp"
+  };
+
   run_loop_thread(const run_loop_thread&) = delete;
 
   run_loop_thread(void) {

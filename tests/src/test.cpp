@@ -128,4 +128,18 @@ int main(void) {
       std::cout << "never reached" << std::endl;
     });
   };
+
+  "shared_run_loop_thread"_test = [] {
+    pqrs::cf::run_loop_thread::extra::initialize_shared_run_loop_thread();
+
+    int __block count = 0;
+
+    pqrs::cf::run_loop_thread::extra::get_shared_run_loop_thread()->enqueue(^{
+      ++count;
+    });
+
+    pqrs::cf::run_loop_thread::extra::terminate_shared_run_loop_thread();
+
+    expect(count == 1_i);
+  };
 }
