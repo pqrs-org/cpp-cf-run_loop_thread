@@ -82,7 +82,8 @@ public:
         }
       }
 
-      std::this_thread::sleep_for(std::chrono::milliseconds(100));
+      // The period of time should be as short as possible, as the thread sleeps at least once here.
+      std::this_thread::sleep_for(std::chrono::milliseconds(10));
     }
   }
 
