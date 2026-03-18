@@ -78,7 +78,7 @@ public:
         // Although this does not usually happen, it is reached when CFRunLoop processing does not start due to a problem with CFRunLoop.
         // Abort because it is irrecoverable.
         if (failure_policy_ == failure_policy::exit) {
-          std::exit(EXIT_FAILURE);
+          std::quick_exit(EXIT_FAILURE);
         } else {
           abort();
         }
