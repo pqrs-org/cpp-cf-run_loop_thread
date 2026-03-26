@@ -78,7 +78,9 @@ public:
         // Although this does not usually happen, it is reached when CFRunLoop processing does not start due to a problem with CFRunLoop.
         // Abort because it is irrecoverable.
         if (failure_policy_ == failure_policy::exit) {
-          std::quick_exit(EXIT_FAILURE);
+          // `std::quick_exit` causes a "Symbol not found: _quick_exit" error on macOS 13,
+          // so we use `std::_Exit` instead.
+          std::_Exit(EXIT_FAILURE);
         } else {
           abort();
         }
