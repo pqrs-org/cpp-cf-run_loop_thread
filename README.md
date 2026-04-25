@@ -3,7 +3,7 @@
 
 # cpp-cf-run_loop_thread
 
-`pqrs::cf-run_loop_thread` provides a thread for `CFRunLoop`.
+`pqrs::cf::run_loop_thread` provides a thread for `CFRunLoop`.
 
 ## Requirements
 
