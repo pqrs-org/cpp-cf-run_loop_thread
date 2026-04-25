@@ -5,13 +5,9 @@ int main(void) {
   {
     pqrs::cf::run_loop_thread t;
 
-    CFRunLoopPerformBlock(t.get_run_loop(),
-                          kCFRunLoopCommonModes,
-                          ^{
-                            std::cout << "hello" << std::endl;
-                          });
-
-    CFRunLoopWakeUp(t.get_run_loop());
+    t.enqueue(^{
+      std::cout << "hello" << std::endl;
+    });
 
     t.terminate();
   }
