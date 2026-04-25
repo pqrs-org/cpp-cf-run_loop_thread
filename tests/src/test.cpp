@@ -8,7 +8,7 @@ using namespace boost::ut::literals;
 
 class run_loop_thread_test final {
 public:
-  run_loop_thread_test(void) : count1_(0),
+  run_loop_thread_test() : count1_(0),
                                count2_(0) {
     for (int i = 0; i < 10; ++i) {
       count1_ = 0;
@@ -54,7 +54,7 @@ public:
   }
 
 private:
-  void enqueue2(void) {
+  void enqueue2() {
     thread2_->enqueue(^{
       ++count2_;
       if (count2_ < 3) {
@@ -77,7 +77,7 @@ private:
 };
 } // namespace
 
-int main(void) {
+int main() {
   "loop_thread"_test = [] {
     run_loop_thread_test();
   };

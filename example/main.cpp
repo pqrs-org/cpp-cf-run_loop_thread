@@ -1,7 +1,7 @@
 #include <iostream>
 #include <pqrs/cf/run_loop_thread.hpp>
 
-int main(void) {
+int main() {
   {
     pqrs::cf::run_loop_thread t;
 
