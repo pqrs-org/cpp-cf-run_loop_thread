@@ -31,6 +31,8 @@ public:
   }
 
   std::shared_ptr<run_loop_thread> get_run_loop_thread(void) const {
+    std::lock_guard<std::mutex> lock(mutex_);
+
     return run_loop_thread_;
   }
 
