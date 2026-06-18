@@ -10,6 +10,7 @@
 cpp-cf-run_loop_thread depends the following classes.
 
 - [pqrs::cf::cf_ptr](https://github.com/pqrs-org/cpp-cf-cf_ptr).
+- [pqrs::gsl](https://github.com/pqrs-org/cpp-gsl).
 - [pqrs::thread_wait](https://github.com/pqrs-org/cpp-thread_wait).
 
 ## Install
