@@ -1,6 +1,9 @@
+#include <atomic>
 #include <boost/ut.hpp>
 #include <list>
 #include <pqrs/cf/run_loop_thread.hpp>
+#include <thread>
+#include <vector>
 
 namespace {
 using namespace boost::ut;
@@ -129,7 +132,59 @@ int main() {
     });
   };
 
+  "concurrent enqueue"_test = [] {
+    constexpr auto thread_count = 4;
+    constexpr auto enqueue_count = 25;
+    constexpr auto total_count = thread_count * enqueue_count;
+
+    auto run_loop_thread = std::make_shared<pqrs::cf::run_loop_thread>();
+    auto wait = pqrs::make_thread_wait();
+    std::atomic<int> count{0};
+
+    std::vector<std::jthread> threads;
+    threads.reserve(thread_count);
+
+    for (int i = 0; i < thread_count; ++i) {
+      threads.emplace_back([&] {
+        for (int j = 0; j < enqueue_count; ++j) {
+          run_loop_thread->enqueue(^{
+            if (count.fetch_add(1) == total_count - 1) {
+              wait->notify();
+            }
+          });
+        }
+      });
+    }
+
+    threads.clear();
+
+    wait->wait_notice();
+    run_loop_thread->terminate();
+
+    expect(count == total_count);
+  };
+
+  "concurrent terminate"_test = [] {
+    auto run_loop_thread = std::make_shared<pqrs::cf::run_loop_thread>();
+
+    std::vector<std::jthread> threads;
+    threads.reserve(8);
+
+    for (int i = 0; i < 8; ++i) {
+      threads.emplace_back([run_loop_thread] {
+        run_loop_thread->terminate();
+      });
+    }
+
+    threads.clear();
+
+    run_loop_thread->terminate();
+    run_loop_thread->wake();
+  };
+
   "shared_run_loop_thread"_test = [] {
+    expect(!pqrs::cf::run_loop_thread::extra::get_shared_run_loop_thread());
+
     pqrs::cf::run_loop_thread::extra::initialize_shared_run_loop_thread();
 
     int __block count = 0;
@@ -141,5 +196,10 @@ int main() {
     pqrs::cf::run_loop_thread::extra::terminate_shared_run_loop_thread();
 
     expect(count == 1_i);
+    expect(!pqrs::cf::run_loop_thread::extra::get_shared_run_loop_thread());
+
+    pqrs::cf::run_loop_thread::extra::initialize_shared_run_loop_thread();
+    expect(pqrs::cf::run_loop_thread::extra::get_shared_run_loop_thread());
+    pqrs::cf::run_loop_thread::extra::terminate_shared_run_loop_thread();
   };
 }
