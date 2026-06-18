@@ -9,6 +9,7 @@
 // `pqrs::cf::run_loop_thread` can be used safely in a multi-threaded environment.
 
 #include <cstdlib>
+#include <mutex>
 #include <pqrs/cf/cf_ptr.hpp>
 #include <pqrs/thread_wait.hpp>
 #include <thread>

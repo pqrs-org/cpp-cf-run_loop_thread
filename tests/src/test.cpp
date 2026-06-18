@@ -9,7 +9,7 @@ using namespace boost::ut::literals;
 class run_loop_thread_test final {
 public:
   run_loop_thread_test() : count1_(0),
-                               count2_(0) {
+                           count2_(0) {
     for (int i = 0; i < 10; ++i) {
       count1_ = 0;
       count2_ = 0;
