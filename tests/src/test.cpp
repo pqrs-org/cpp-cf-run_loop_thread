@@ -86,7 +86,7 @@ int main() {
   };
 
   "loop_thread (multiple instances)"_test = [] {
-    std::list<std::shared_ptr<pqrs::cf::run_loop_thread>> run_loop_threads;
+    std::list<pqrs::not_null_shared_ptr_t<pqrs::cf::run_loop_thread>> run_loop_threads;
     for (int i = 0; i < 100; ++i) {
       auto t = std::make_shared<pqrs::cf::run_loop_thread>();
 
@@ -132,6 +132,52 @@ int main() {
     });
   };
 
+  "add_source and remove_source"_test = [] {
+    auto run_loop_thread = std::make_shared<pqrs::cf::run_loop_thread>();
+    auto wait1 = pqrs::make_thread_wait();
+    auto wait2 = pqrs::make_thread_wait();
+    std::atomic<int> count{0};
+    struct source_context final {
+      std::atomic<int>* count;
+      pqrs::not_null_shared_ptr_t<pqrs::thread_wait> wait;
+    } source_context{
+        .count = &count,
+        .wait = wait1,
+    };
+
+    auto context = CFRunLoopSourceContext();
+    context.info = &source_context;
+    context.perform = [](void* _Nullable info) {
+      auto source_context = reinterpret_cast<struct source_context*>(info);
+      if (source_context->count->fetch_add(1) == 0) {
+        source_context->wait->notify();
+      }
+    };
+
+    auto source = pqrs::cf::adopt_cf_ptr(CFRunLoopSourceCreate(kCFAllocatorDefault,
+                                                               0,
+                                                               &context));
+
+    run_loop_thread->add_source(*source);
+    CFRunLoopSourceSignal(*source);
+    run_loop_thread->wake();
+    wait1->wait_notice();
+
+    expect(count.load() == 1_i);
+
+    run_loop_thread->remove_source(*source);
+    CFRunLoopSourceSignal(*source);
+    run_loop_thread->wake();
+    run_loop_thread->enqueue(^{
+      wait2->notify();
+    });
+    wait2->wait_notice();
+
+    expect(count.load() == 1_i);
+
+    run_loop_thread->terminate();
+  };
+
   "concurrent enqueue"_test = [] {
     constexpr auto thread_count = 4;
     constexpr auto enqueue_count = 25;
@@ -141,7 +187,7 @@ int main() {
     auto wait = pqrs::make_thread_wait();
     std::atomic<int> count{0};
 
-    std::vector<std::jthread> threads;
+    std::vector<std::thread> threads;
     threads.reserve(thread_count);
 
     for (int i = 0; i < thread_count; ++i) {
@@ -156,7 +202,9 @@ int main() {
       });
     }
 
-    threads.clear();
+    for (auto&& thread : threads) {
+      thread.join();
+    }
 
     wait->wait_notice();
     run_loop_thread->terminate();
@@ -167,7 +215,7 @@ int main() {
   "concurrent terminate"_test = [] {
     auto run_loop_thread = std::make_shared<pqrs::cf::run_loop_thread>();
 
-    std::vector<std::jthread> threads;
+    std::vector<std::thread> threads;
     threads.reserve(8);
 
     for (int i = 0; i < 8; ++i) {
@@ -176,7 +224,9 @@ int main() {
       });
     }
 
-    threads.clear();
+    for (auto&& thread : threads) {
+      thread.join();
+    }
 
     run_loop_thread->terminate();
     run_loop_thread->wake();
