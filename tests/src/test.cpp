@@ -11,8 +11,7 @@ using namespace boost::ut::literals;
 
 class run_loop_thread_test final {
 public:
-  run_loop_thread_test() : count1_(0),
-                           count2_(0) {
+  run_loop_thread_test() {
     for (int i = 0; i < 10; ++i) {
       count1_ = 0;
       count2_ = 0;
@@ -72,8 +71,8 @@ private:
   std::shared_ptr<pqrs::cf::run_loop_thread> thread1_;
   std::shared_ptr<pqrs::cf::run_loop_thread> thread2_;
 
-  int count1_;
-  int count2_;
+  int count1_{0};
+  int count2_{0};
 
   std::shared_ptr<pqrs::thread_wait> wait1_;
   std::shared_ptr<pqrs::thread_wait> wait2_;
