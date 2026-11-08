@@ -9,6 +9,39 @@ namespace {
 using namespace boost::ut;
 using namespace boost::ut::literals;
 
+class test_execution_scope final : public pqrs::cf::run_loop_thread::execution_scope {
+public:
+  test_execution_scope(std::atomic<bool>& inside_scope,
+                       std::atomic<size_t>& created_count,
+                       std::atomic<size_t>& destroyed_count,
+                       std::atomic<size_t>& processed_count,
+                       pqrs::not_null_shared_ptr_t<pqrs::thread_wait> processed_wait)
+      : inside_scope_(inside_scope),
+        created_count_(created_count),
+        destroyed_count_(destroyed_count),
+        processed_count_(processed_count),
+        processed_wait_(processed_wait) {
+    inside_scope_ = true;
+    ++created_count_;
+  }
+
+  ~test_execution_scope() override {
+    inside_scope_ = false;
+    ++destroyed_count_;
+
+    if (processed_count_.load() == 2) {
+      processed_wait_->notify();
+    }
+  }
+
+private:
+  std::atomic<bool>& inside_scope_;
+  std::atomic<size_t>& created_count_;
+  std::atomic<size_t>& destroyed_count_;
+  std::atomic<size_t>& processed_count_;
+  pqrs::not_null_shared_ptr_t<pqrs::thread_wait> processed_wait_;
+};
+
 class run_loop_thread_test final {
 public:
   run_loop_thread_test() {
@@ -177,6 +210,71 @@ int main() {
     run_loop_thread->terminate();
   };
 
+  "execution_scope_factory"_test = [] {
+    std::atomic<bool> inside_scope{false};
+    std::atomic<bool> block_was_inside_scope{false};
+    std::atomic<bool> source_was_inside_scope{false};
+    std::atomic<size_t> created_count{0};
+    std::atomic<size_t> destroyed_count{0};
+    std::atomic<size_t> processed_count{0};
+    auto processed_wait = pqrs::make_thread_wait();
+
+    auto run_loop_thread = std::make_shared<pqrs::cf::run_loop_thread>(
+        pqrs::cf::run_loop_thread::failure_policy::abort,
+        [&] {
+          return std::make_unique<test_execution_scope>(inside_scope,
+                                                        created_count,
+                                                        destroyed_count,
+                                                        processed_count,
+                                                        processed_wait);
+        });
+
+    struct source_context final {
+      std::atomic<bool>* inside_scope;
+      std::atomic<bool>* source_was_inside_scope;
+      std::atomic<size_t>* processed_count;
+    } source_context{
+        .inside_scope = &inside_scope,
+        .source_was_inside_scope = &source_was_inside_scope,
+        .processed_count = &processed_count,
+    };
+
+    auto context = CFRunLoopSourceContext();
+    context.info = &source_context;
+    context.perform = [](void* _Nullable info) {
+      auto source_context = reinterpret_cast<struct source_context*>(info);
+      source_context->source_was_inside_scope->store(source_context->inside_scope->load());
+      ++(*source_context->processed_count);
+    };
+
+    auto source = pqrs::cf::adopt_cf_ptr(CFRunLoopSourceCreate(kCFAllocatorDefault,
+                                                               0,
+                                                               &context));
+
+    auto inside_scope_ptr = &inside_scope;
+    auto block_was_inside_scope_ptr = &block_was_inside_scope;
+    auto processed_count_ptr = &processed_count;
+
+    run_loop_thread->add_source(*source);
+    run_loop_thread->enqueue(^{
+      block_was_inside_scope_ptr->store(inside_scope_ptr->load());
+      ++(*processed_count_ptr);
+    });
+    CFRunLoopSourceSignal(*source);
+    run_loop_thread->wake();
+
+    processed_wait->wait_notice();
+
+    expect(block_was_inside_scope.load());
+    expect(source_was_inside_scope.load());
+    expect(!inside_scope.load());
+
+    run_loop_thread->remove_source(*source);
+    run_loop_thread->terminate();
+
+    expect(created_count.load() == destroyed_count.load());
+  };
+
   "concurrent enqueue"_test = [] {
     constexpr auto thread_count = 4;
     constexpr auto enqueue_count = 25;
@@ -250,5 +348,41 @@ int main() {
     pqrs::cf::run_loop_thread::extra::initialize_shared_run_loop_thread();
     expect(pqrs::cf::run_loop_thread::extra::get_shared_run_loop_thread());
     pqrs::cf::run_loop_thread::extra::terminate_shared_run_loop_thread();
+
+    std::atomic<bool> inside_scope{false};
+    std::atomic<bool> block_was_inside_scope{false};
+
+    class shared_test_execution_scope final : public pqrs::cf::run_loop_thread::execution_scope {
+    public:
+      explicit shared_test_execution_scope(std::atomic<bool>& inside_scope)
+          : inside_scope_(inside_scope) {
+        inside_scope_ = true;
+      }
+
+      ~shared_test_execution_scope() override {
+        inside_scope_ = false;
+      }
+
+    private:
+      std::atomic<bool>& inside_scope_;
+    };
+
+    pqrs::cf::run_loop_thread::extra::initialize_shared_run_loop_thread(
+        pqrs::cf::run_loop_thread::failure_policy::abort,
+        [&] {
+          return std::make_unique<shared_test_execution_scope>(inside_scope);
+        });
+
+    auto inside_scope_ptr = &inside_scope;
+    auto block_was_inside_scope_ptr = &block_was_inside_scope;
+    pqrs::cf::run_loop_thread::extra::get_shared_run_loop_thread()->enqueue(^{
+      block_was_inside_scope_ptr->store(inside_scope_ptr->load());
+    });
+
+    pqrs::cf::run_loop_thread::extra::terminate_shared_run_loop_thread();
+
+    expect(block_was_inside_scope.load());
+    expect(!inside_scope.load());
+    expect(!pqrs::cf::run_loop_thread::extra::get_shared_run_loop_thread());
   };
 }
