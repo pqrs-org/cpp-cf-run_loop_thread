@@ -3,6 +3,7 @@ CLANG_FORMAT_FILES = \
 	'*.hpp' \
 	'*.hpp.in' \
 	'*.iig' \
+	'*.m' \
 	'*.mm' \
 	'*.cpp' \
 	':(exclude)vendor/**'

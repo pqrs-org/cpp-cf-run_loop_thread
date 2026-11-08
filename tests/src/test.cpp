@@ -1,3 +1,4 @@
+#include "TestAutoreleasePool.h"
 #include <atomic>
 #include <boost/ut.hpp>
 #include <list>
@@ -8,39 +9,6 @@
 namespace {
 using namespace boost::ut;
 using namespace boost::ut::literals;
-
-class test_execution_scope final : public pqrs::cf::run_loop_thread::execution_scope {
-public:
-  test_execution_scope(std::atomic<bool>& inside_scope,
-                       std::atomic<size_t>& created_count,
-                       std::atomic<size_t>& destroyed_count,
-                       std::atomic<size_t>& processed_count,
-                       pqrs::not_null_shared_ptr_t<pqrs::thread_wait> processed_wait)
-      : inside_scope_(inside_scope),
-        created_count_(created_count),
-        destroyed_count_(destroyed_count),
-        processed_count_(processed_count),
-        processed_wait_(processed_wait) {
-    inside_scope_ = true;
-    ++created_count_;
-  }
-
-  ~test_execution_scope() override {
-    inside_scope_ = false;
-    ++destroyed_count_;
-
-    if (processed_count_.load() == 2) {
-      processed_wait_->notify();
-    }
-  }
-
-private:
-  std::atomic<bool>& inside_scope_;
-  std::atomic<size_t>& created_count_;
-  std::atomic<size_t>& destroyed_count_;
-  std::atomic<size_t>& processed_count_;
-  pqrs::not_null_shared_ptr_t<pqrs::thread_wait> processed_wait_;
-};
 
 class run_loop_thread_test final {
 public:
@@ -210,32 +178,34 @@ int main() {
     run_loop_thread->terminate();
   };
 
-  "execution_scope_factory"_test = [] {
-    std::atomic<bool> inside_scope{false};
-    std::atomic<bool> block_was_inside_scope{false};
-    std::atomic<bool> source_was_inside_scope{false};
-    std::atomic<size_t> created_count{0};
-    std::atomic<size_t> destroyed_count{0};
+  "execution_wrapper"_test = [] {
+    std::atomic<bool> inside_wrapper{false};
+    std::atomic<bool> block_was_inside_wrapper{false};
+    std::atomic<bool> source_was_inside_wrapper{false};
+    std::atomic<size_t> wrapper_count{0};
     std::atomic<size_t> processed_count{0};
     auto processed_wait = pqrs::make_thread_wait();
 
     auto run_loop_thread = std::make_shared<pqrs::cf::run_loop_thread>(
         pqrs::cf::run_loop_thread::failure_policy::abort,
-        [&] {
-          return std::make_unique<test_execution_scope>(inside_scope,
-                                                        created_count,
-                                                        destroyed_count,
-                                                        processed_count,
-                                                        processed_wait);
+        [&](const std::function<void()>& function) {
+          inside_wrapper = true;
+          function();
+          inside_wrapper = false;
+          ++wrapper_count;
+
+          if (processed_count.load() == 2) {
+            processed_wait->notify();
+          }
         });
 
     struct source_context final {
-      std::atomic<bool>* inside_scope;
-      std::atomic<bool>* source_was_inside_scope;
+      std::atomic<bool>* inside_wrapper;
+      std::atomic<bool>* source_was_inside_wrapper;
       std::atomic<size_t>* processed_count;
     } source_context{
-        .inside_scope = &inside_scope,
-        .source_was_inside_scope = &source_was_inside_scope,
+        .inside_wrapper = &inside_wrapper,
+        .source_was_inside_wrapper = &source_was_inside_wrapper,
         .processed_count = &processed_count,
     };
 
@@ -243,7 +213,7 @@ int main() {
     context.info = &source_context;
     context.perform = [](void* _Nullable info) {
       auto source_context = reinterpret_cast<struct source_context*>(info);
-      source_context->source_was_inside_scope->store(source_context->inside_scope->load());
+      source_context->source_was_inside_wrapper->store(source_context->inside_wrapper->load());
       ++(*source_context->processed_count);
     };
 
@@ -251,13 +221,13 @@ int main() {
                                                                0,
                                                                &context));
 
-    auto inside_scope_ptr = &inside_scope;
-    auto block_was_inside_scope_ptr = &block_was_inside_scope;
+    auto inside_wrapper_ptr = &inside_wrapper;
+    auto block_was_inside_wrapper_ptr = &block_was_inside_wrapper;
     auto processed_count_ptr = &processed_count;
 
     run_loop_thread->add_source(*source);
     run_loop_thread->enqueue(^{
-      block_was_inside_scope_ptr->store(inside_scope_ptr->load());
+      block_was_inside_wrapper_ptr->store(inside_wrapper_ptr->load());
       ++(*processed_count_ptr);
     });
     CFRunLoopSourceSignal(*source);
@@ -265,14 +235,62 @@ int main() {
 
     processed_wait->wait_notice();
 
-    expect(block_was_inside_scope.load());
-    expect(source_was_inside_scope.load());
-    expect(!inside_scope.load());
+    expect(block_was_inside_wrapper.load());
+    expect(source_was_inside_wrapper.load());
 
     run_loop_thread->remove_source(*source);
     run_loop_thread->terminate();
 
-    expect(created_count.load() == destroyed_count.load());
+    expect(!inside_wrapper.load());
+    expect(wrapper_count.load() > 0);
+  };
+
+  "autorelease_pool_execution_wrapper"_test = [] {
+    auto run_loop_thread = std::make_shared<pqrs::cf::run_loop_thread>(
+        pqrs::cf::run_loop_thread::failure_policy::abort,
+        [](const std::function<void()>& function) {
+          auto token = pqrs_cf_run_loop_thread_test_autorelease_pool_push();
+          function();
+          pqrs_cf_run_loop_thread_test_autorelease_pool_pop(token);
+        });
+
+    auto wait = pqrs::make_thread_wait();
+    std::atomic<int> count{0};
+    auto wait_ptr = wait.get();
+    auto count_ptr = &count;
+
+    for (int i = 0; i < 10; ++i) {
+      run_loop_thread->enqueue(^{
+        if (count_ptr->fetch_add(1) == 9) {
+          wait_ptr->notify();
+        }
+      });
+    }
+
+    wait->wait_notice();
+    run_loop_thread->terminate();
+
+    expect(count == 10);
+  };
+
+  "execution_wrapper_is_repeated_after_timeout"_test = [] {
+    std::atomic<size_t> wrapper_count{0};
+    auto wrapper_count_wait = pqrs::make_thread_wait();
+
+    auto run_loop_thread = std::make_shared<pqrs::cf::run_loop_thread>(
+        pqrs::cf::run_loop_thread::failure_policy::abort,
+        [&](const std::function<void()>& function) {
+          function();
+
+          if (wrapper_count.fetch_add(1) == 1) {
+            wrapper_count_wait->notify();
+          }
+        });
+
+    wrapper_count_wait->wait_notice();
+    run_loop_thread->terminate();
+
+    expect(wrapper_count.load() >= 2);
   };
 
   "concurrent enqueue"_test = [] {
@@ -349,40 +367,27 @@ int main() {
     expect(pqrs::cf::run_loop_thread::extra::get_shared_run_loop_thread());
     pqrs::cf::run_loop_thread::extra::terminate_shared_run_loop_thread();
 
-    std::atomic<bool> inside_scope{false};
-    std::atomic<bool> block_was_inside_scope{false};
-
-    class shared_test_execution_scope final : public pqrs::cf::run_loop_thread::execution_scope {
-    public:
-      explicit shared_test_execution_scope(std::atomic<bool>& inside_scope)
-          : inside_scope_(inside_scope) {
-        inside_scope_ = true;
-      }
-
-      ~shared_test_execution_scope() override {
-        inside_scope_ = false;
-      }
-
-    private:
-      std::atomic<bool>& inside_scope_;
-    };
+    std::atomic<bool> inside_wrapper{false};
+    std::atomic<bool> block_was_inside_wrapper{false};
 
     pqrs::cf::run_loop_thread::extra::initialize_shared_run_loop_thread(
         pqrs::cf::run_loop_thread::failure_policy::abort,
-        [&] {
-          return std::make_unique<shared_test_execution_scope>(inside_scope);
+        [&](const std::function<void()>& function) {
+          inside_wrapper = true;
+          function();
+          inside_wrapper = false;
         });
 
-    auto inside_scope_ptr = &inside_scope;
-    auto block_was_inside_scope_ptr = &block_was_inside_scope;
+    auto inside_wrapper_ptr = &inside_wrapper;
+    auto block_was_inside_wrapper_ptr = &block_was_inside_wrapper;
     pqrs::cf::run_loop_thread::extra::get_shared_run_loop_thread()->enqueue(^{
-      block_was_inside_scope_ptr->store(inside_scope_ptr->load());
+      block_was_inside_wrapper_ptr->store(inside_wrapper_ptr->load());
     });
 
     pqrs::cf::run_loop_thread::extra::terminate_shared_run_loop_thread();
 
-    expect(block_was_inside_scope.load());
-    expect(!inside_scope.load());
+    expect(block_was_inside_wrapper.load());
+    expect(!inside_wrapper.load());
     expect(!pqrs::cf::run_loop_thread::extra::get_shared_run_loop_thread());
   };
 }

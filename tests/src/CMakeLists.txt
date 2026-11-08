@@ -12,14 +12,22 @@ add_link_options(-fsanitize=address)
 include_directories(${CMAKE_CURRENT_LIST_DIR}/../../include)
 include_directories(SYSTEM ${CMAKE_CURRENT_LIST_DIR}/../../vendor/vendor/include)
 
-project (test)
+project(test LANGUAGES CXX OBJC)
+
+set_source_files_properties(
+  TestAutoreleasePool.m
+  PROPERTIES
+  COMPILE_OPTIONS -fno-objc-arc
+)
 
 add_executable(
   test
+  TestAutoreleasePool.m
   test.cpp
 )
 
 target_link_libraries(
   test
   "-framework CoreFoundation"
+  "-framework Foundation"
 )
